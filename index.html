@@ -53,7 +53,7 @@
         .add-button:hover {
             background-color: #1565c0;
         }
-        /* New Sorting Button Group */
+        /* Sorting Button Group */
         .sort-buttons {
             display: flex;
             gap: 10px;
@@ -187,6 +187,61 @@
     const searchInput = document.getElementById('searchInput');
     const itemList = document.getElementById('itemList');
     const feedbackMessage = document.getElementById('feedbackMessage');
+
+    // --- INITIAL DATA LOADED FROM SCREENSHOTS ---
+    const initialItemList = [
+        // Vegetables/Produce
+        { name: "Carrots", price: "100.00" },
+        { name: "Raddish", price: "80.00" },
+        { name: "Karlang", price: "70.00" },
+        { name: "Kamote", price: "50.00" },
+        { name: "Saging kardaba", price: "25.00" },
+        { name: "Saging lakatan", price: "65.00" },
+        { name: "Saging tundan", price: "40.00" },
+        { name: "Sibuyas dahom", price: "130.00" },
+        { name: "Luy-a", price: "100.00" },
+        { name: "Atsal", price: "250.00" },
+        { name: "Pipino", price: "60.00" },
+        { name: "Sayote for 1", price: "12.00" },
+        { name: "Kalabasa", price: "50.00" },
+        { name: "Repolyo", price: "80.00" },
+        { name: "Chinese Pechay", price: "85.00" },
+        { name: "Upo", price: "60.00" },
+        { name: "Patatas", price: "150.00" },
+        { name: "Talong", price: "75.00" },
+        { name: "Paleya", price: "90.00" },
+        { name: "Patola", price: "70.00" },
+        
+        // Beverages & Snacks
+        { name: "Soreso", price: "45.00" },
+        { name: "Kopiko twin blanca", price: "15.00" },
+        { name: "Kopiko brown", price: "15.00" },
+        { name: "Kopiko black", price: "15.00" },
+        { name: "Great taste", price: "15.00" },
+        { name: "Nescafe original", price: "16.00" },
+        { name: "Nescafe creamy white", price: "16.00" },
+        { name: "Nescafe creamy latte", price: "16.00" },
+        { name: "Top 3 in one", price: "16.00" },
+        { name: "Milo", price: "11.00" },
+        { name: "Pancit canton", price: "15.00" },
+        { name: "Luckyme beef & chicken", price: "12.00" },
+        { name: "Luckyme spicy labuyo", price: "15.00" },
+        { name: "Quickchow beef & chicken", price: "12.00" },
+
+        // General Goods & Other
+        { name: "Birtch tree", price: "12.00" },
+        { name: "Bearbrand swak", price: "15.00" },
+        { name: "Tableya", price: "10.00" },
+        { name: "Sugar white", price: "25.00" },
+        { name: "Sugar brown", price: "20.00" },
+        { name: "Oil", price: "27.00" },
+        { name: "Folder short", price: "10.00" },
+        { name: "Envelope long", price: "9.00" },
+        { name: "Envelope short", price: "7.00" },
+        { name: "Hotdog", price: "45.00" },
+        { name: "Chicken loof", price: "45.00" }
+    ];
+    // --- END INITIAL DATA ---
     
     // --- CORE DATA FUNCTIONS ---
 
@@ -228,7 +283,6 @@
         if (indexToRemove > -1 && indexToRemove < items.length) {
             items.splice(indexToRemove, 1);
             saveItems(items);
-            // After removal, re-load and render the full list
             loadItems();
         }
     }
@@ -247,7 +301,7 @@
         }
     }
     
-    // --- NEW SORTING FUNCTION ---
+    // --- SORTING FUNCTION ---
     function sortItems(key) {
         let items = getSavedItems();
 
@@ -265,29 +319,24 @@
                 const priceB = cleanPrice(b.price);
                 return priceA - priceB;
             }
-            return 0; // Should not happen
+            return 0;
         });
 
         // Save the sorted list back to localStorage
         saveItems(items);
         renderItems(items); // Render the sorted list
     }
-    // --- END NEW SORTING FUNCTION ---
+    // --- END SORTING FUNCTION ---
 
 
     function renderItems(itemsArray) {
         itemList.innerHTML = '';
-        // Note: We no longer reverse the array here, as the default display 
-        // will show the most recently added items at the bottom unless a sort 
-        // is applied. If sorting is applied, the order is dictated by sortItems().
 
         itemsArray.forEach((item, index) => {
             const listItem = document.createElement('li');
             
-            // The index of the item in the currently rendered array is its removal index
             const actualIndex = index; 
 
-            // Item Details Span (Clickable to copy)
             const itemDetails = document.createElement('div');
             itemDetails.className = 'item-details';
             itemDetails.addEventListener('click', () => copyItemDetails(item));
@@ -303,12 +352,10 @@
             itemDetails.appendChild(nameSpan);
             itemDetails.appendChild(priceSpan);
 
-            // Remove Button
             const removeButton = document.createElement('button');
             removeButton.textContent = 'Remove';
             removeButton.className = 'remove-btn';
             
-            // Pass the current index for removal
             removeButton.addEventListener('click', (event) => {
                 event.stopPropagation(); 
                 removeItem(actualIndex);
@@ -320,10 +367,18 @@
         });
     }
 
-    // Load function now sets the default display order (newest items at the top)
     function loadItems() {
-        const items = getSavedItems();
-        // Reverse for the default view (newest first), but don't save this reversed order.
+        let items = getSavedItems();
+        
+        // --- LOGIC TO PRE-LOAD THE INITIAL LIST ONLY IF LOCAL STORAGE IS EMPTY ---
+        if (items.length === 0) {
+            items = initialItemList;
+            // Save the initial list so it appears on subsequent visits
+            saveItems(items); 
+        }
+        // --- END PRE-LOAD LOGIC ---
+        
+        // Default view: Display items newest first (last added item is at the top)
         renderItems([...items].reverse()); 
     }
     
@@ -342,7 +397,7 @@
         items.push(newItem);
         saveItems(items);
         
-        // After adding, reload to show the newest item at the top
+        // Reload to show the newest item at the top
         loadItems(); 
         
         // Clear inputs
@@ -362,7 +417,8 @@
             return nameMatch || priceMatch;
         });
         
-        renderItems(filteredItems);
+        // Display filtered items (reversed to show newest/closest match first)
+        renderItems([...filteredItems].reverse());
     }
 
     // Listeners for 'Enter' key press
