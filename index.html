@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Item List & Prices (₱)</title>
+    <title>Hygiene's Item List & Prices (₱) - Sortable</title>
     <style>
         /* Base Styles */
         body {
@@ -53,6 +53,22 @@
         .add-button:hover {
             background-color: #1565c0;
         }
+        /* New Sorting Button Group */
+        .sort-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .sort-buttons button {
+            flex: 1;
+            background-color: #6c757d;
+            color: white;
+            border: none;
+            width: auto;
+        }
+        .sort-buttons button:hover {
+            background-color: #5a6268;
+        }
 
         /* List Styles */
         ul {
@@ -97,7 +113,6 @@
             color: #555;
             flex-basis: 30%;
             text-align: right;
-            /* Ensures Peso sign displays correctly */
             unicode-bidi: embed; 
         }
         .remove-btn {
@@ -133,7 +148,7 @@
 <body onload="loadItems()">
 
 <div class="container">
-    <h2>🇵🇭 Item List & Prices</h2>
+    <h2>🇵🇭 Hygiene's Item List & Prices</h2>
     
     <div id="controls">
         <p><strong>Add New Item:</strong></p>
@@ -146,6 +161,12 @@
 
         <p><strong>Search Item List:</strong></p>
         <input type="text" id="searchInput" onkeyup="searchItems()" placeholder="Search by item name or price...">
+        
+        <p><strong>Sort List:</strong></p>
+        <div class="sort-buttons">
+            <button onclick="sortItems('name')">Sort by Name (A-Z)</button>
+            <button onclick="sortItems('price')">Sort by Price (Lowest)</button>
+        </div>
         <hr>
     </div>
 
@@ -178,24 +199,17 @@
         localStorage.setItem(STORAGE_KEY, JSON.stringify(itemsArray));
     }
 
-    function removeItem(indexToRemove) {
-        let items = getSavedItems();
-        
-        if (indexToRemove > -1 && indexToRemove < items.length) {
-            items.splice(indexToRemove, 1);
-            saveItems(items);
-            renderItems(items);
-        }
+    // Cleans the price string into a float number for calculation/sorting
+    function cleanPrice(priceString) {
+        if (!priceString) return 0;
+        return parseFloat(priceString.replace(/[₱,$]/g, ''));
     }
 
-    // Function to format the price string (adds ₱ if not present and handles commas/decimals)
+    // Function to format the price string (adds ₱ and handles commas/decimals)
     function formatPrice(priceString) {
         if (!priceString) return '';
-        // Remove existing currency symbols, commas, or spaces for clean processing
-        let cleanPrice = priceString.replace(/[₱$]/g, '').trim(); 
-        
-        // Attempt to convert to a number for proper formatting, otherwise return as is
-        let numPrice = parseFloat(cleanPrice.replace(/,/g, ''));
+        let numPrice = cleanPrice(priceString);
+
         if (!isNaN(numPrice)) {
             // Use Intl.NumberFormat for proper Philippine Peso formatting (e.g., 5,000.00)
             const formatter = new Intl.NumberFormat('en-PH', {
@@ -205,9 +219,19 @@
             });
             return formatter.format(numPrice);
         }
-        return CURRENCY_SYMBOL + cleanPrice; // Fallback if not a standard number
+        return CURRENCY_SYMBOL + priceString.replace(/[₱$]/g, '').trim(); // Fallback
     }
-
+    
+    function removeItem(indexToRemove) {
+        let items = getSavedItems();
+        
+        if (indexToRemove > -1 && indexToRemove < items.length) {
+            items.splice(indexToRemove, 1);
+            saveItems(items);
+            // After removal, re-load and render the full list
+            loadItems();
+        }
+    }
 
     async function copyItemDetails(item) {
         const formattedPrice = formatPrice(item.price);
@@ -222,16 +246,46 @@
             alert('Error: Unable to copy to clipboard.');
         }
     }
+    
+    // --- NEW SORTING FUNCTION ---
+    function sortItems(key) {
+        let items = getSavedItems();
+
+        items.sort((a, b) => {
+            if (key === 'name') {
+                // Sort by name alphabetically (A-Z)
+                const nameA = a.name.toUpperCase();
+                const nameB = b.name.toUpperCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            } else if (key === 'price') {
+                // Sort by price numerically (Lowest to Highest)
+                const priceA = cleanPrice(a.price);
+                const priceB = cleanPrice(b.price);
+                return priceA - priceB;
+            }
+            return 0; // Should not happen
+        });
+
+        // Save the sorted list back to localStorage
+        saveItems(items);
+        renderItems(items); // Render the sorted list
+    }
+    // --- END NEW SORTING FUNCTION ---
+
 
     function renderItems(itemsArray) {
         itemList.innerHTML = '';
-        const reversedItems = [...itemsArray].reverse();
+        // Note: We no longer reverse the array here, as the default display 
+        // will show the most recently added items at the bottom unless a sort 
+        // is applied. If sorting is applied, the order is dictated by sortItems().
 
-        reversedItems.forEach((item, originalIndexOffset) => {
+        itemsArray.forEach((item, index) => {
             const listItem = document.createElement('li');
             
-            // Calculate the original index for removal purposes
-            const actualIndex = itemsArray.length - 1 - reversedItems.indexOf(item);
+            // The index of the item in the currently rendered array is its removal index
+            const actualIndex = index; 
 
             // Item Details Span (Clickable to copy)
             const itemDetails = document.createElement('div');
@@ -244,8 +298,6 @@
             
             const priceSpan = document.createElement('span');
             priceSpan.className = 'item-price';
-            
-            // Display the formatted price with the Peso sign
             priceSpan.textContent = formatPrice(item.price);
             
             itemDetails.appendChild(nameSpan);
@@ -256,6 +308,7 @@
             removeButton.textContent = 'Remove';
             removeButton.className = 'remove-btn';
             
+            // Pass the current index for removal
             removeButton.addEventListener('click', (event) => {
                 event.stopPropagation(); 
                 removeItem(actualIndex);
@@ -267,11 +320,13 @@
         });
     }
 
+    // Load function now sets the default display order (newest items at the top)
     function loadItems() {
         const items = getSavedItems();
-        renderItems(items);
+        // Reverse for the default view (newest first), but don't save this reversed order.
+        renderItems([...items].reverse()); 
     }
-
+    
     function addItem() {
         const newName = nameInput.value.trim();
         const newPrice = priceInput.value.trim();
@@ -286,7 +341,9 @@
         
         items.push(newItem);
         saveItems(items);
-        renderItems(items); 
+        
+        // After adding, reload to show the newest item at the top
+        loadItems(); 
         
         // Clear inputs
         nameInput.value = "";
@@ -299,10 +356,8 @@
         const filter = searchInput.value.toUpperCase();
         const items = getSavedItems();
         
-        // Filter the list based on search term
         const filteredItems = items.filter(item => {
             const nameMatch = item.name.toUpperCase().includes(filter);
-            // Search both the raw price and the formatted price string
             const priceMatch = item.price.toUpperCase().includes(filter) || formatPrice(item.price).toUpperCase().includes(filter);
             return nameMatch || priceMatch;
         });
